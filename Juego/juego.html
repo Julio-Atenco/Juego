@@ -186,6 +186,12 @@
             background: #FF9800;
             color: white;
         }
+
+        .estadisticas {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #ccc;
+        }
     </style>
 </head>
 <body>
@@ -197,6 +203,9 @@
             </div>
             <div class="enfriamiento-escudo" id="enfriamientoEscudo">Escudo: Listo</div>
             <div id="estadoJugador"></div>
+            <div class="estadisticas">
+                Victorias: <span id="victorias">0</span> | Derrotas: <span id="derrotas">0</span>
+            </div>
         </div>
         <div class="info-enemigo">
             <h3>ENEMIGO</h3>
@@ -255,7 +264,7 @@
         // Configuración física
         const GRAVEDAD = 0.8;
         const VELOCIDAD_SALTO = -16;
-        const SUELO_Y = 400; // Suelo plano en todo el escenario
+        const SUELO_Y = 400;
 
         // Jugador
         const jugador = {
@@ -272,7 +281,8 @@
             anguloEspada: 0,
             escudoActivo: false,
             enfriamientoEscudo: 0,
-            duracionEscudo: 0
+            duracionEscudo: 0,
+            vida: 100
         };
 
         // Enemigo
@@ -290,13 +300,62 @@
             anguloEspada: 0,
             enfriamientoAtaque: 0,
             temporizadorMovimiento: 0,
-            direccionMovimiento: -1, // Empieza yendo a la izquierda
+            direccionMovimiento: -1,
             defensaActiva: false,
             enfriamientoDefensa: 0,
-            temporizadorDefensa: 0
+            temporizadorDefensa: 0,
+            vida: 150
         };
 
-        // Controles de teclado
+        // === LOCALSTORAGE: Estadísticas persistentes ===
+        const ESTADISTICAS_CLAVE = 'combateEspadas_estadisticas';
+        let estadisticas = {
+            victorias: 0,
+            derrotas: 0,
+            partidasJugadas: 0,
+            mejorTiempoVictoria: null,
+            ultimaPartida: null
+        };
+
+        function cargarEstadisticas() {
+            const guardado = localStorage.getItem(ESTADISTICAS_CLAVE);
+            if (guardado) {
+                try {
+                    const datos = JSON.parse(guardado);
+                    estadisticas = { ...estadisticas, ...datos };
+                } catch (e) {
+                    console.warn("Error al cargar estadísticas, se reinician.");
+                }
+            }
+            actualizarContadores();
+        }
+
+        function guardarEstadisticas() {
+            localStorage.setItem(ESTADISTICAS_CLAVE, JSON.stringify(estadisticas));
+        }
+
+        function actualizarContadores() {
+            document.getElementById('victorias').textContent = estadisticas.victorias;
+            document.getElementById('derrotas').textContent = estadisticas.derrotas;
+        }
+
+        function registrarVictoria() {
+            estadisticas.victorias++;
+            estadisticas.partidasJugadas++;
+            estadisticas.ultimaPartida = new Date().toLocaleString();
+            guardarEstadisticas();
+            actualizarContadores();
+        }
+
+        function registrarDerrota() {
+            estadisticas.derrotas++;
+            estadisticas.partidasJugadas++;
+            estadisticas.ultimaPartida = new Date().toLocaleString();
+            guardarEstadisticas();
+            actualizarContadores();
+        }
+
+        // Controles
         document.addEventListener('keydown', (e) => {
             teclas[e.key.toLowerCase()] = true;
 
@@ -313,16 +372,16 @@
             teclas[e.key.toLowerCase()] = false;
         });
 
-        // Salto del jugador
+        // Salto
         document.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 'w' && jugador.enSuelo && juegoActivo) {
-            e.preventDefault();
-            jugador.velocidadY = VELOCIDAD_SALTO;
-            jugador.enSuelo = false;
+            if (e.key.toLowerCase() === 'w' && jugador.enSuelo && juegoActivo) {
+                e.preventDefault();
+                jugador.velocidadY = VELOCIDAD_SALTO;
+                jugador.enSuelo = false;
             }
         });
 
-        // Ataque con click del mouse
+        // Ataque con click
         canva.addEventListener('click', (e) => {
             if (juegoActivo && !jugador.atacandoEspada) {
                 ataqueJugador();
@@ -369,28 +428,23 @@
         }
 
         function fisicaJugador() {
-            // Movimiento horizontal
             jugador.velocidadX = 0;
             if (teclas['a'] || teclas['arrowleft']) jugador.velocidadX = -jugador.velocidadHorizontal - 7;
             if (teclas['d'] || teclas['arrowright']) jugador.velocidadX = jugador.velocidadHorizontal + 7;
 
-            // Aplicar gravedad
             if (!jugador.enSuelo) {
                 jugador.velocidadY += GRAVEDAD;
             }
 
-            // Actualizar posición
             jugador.x += jugador.velocidadX;
             jugador.y += jugador.velocidadY;
 
-            // Colisión con el suelo
             if (jugador.y >= SUELO_Y - jugador.alto) {
                 jugador.y = SUELO_Y - jugador.alto;
                 jugador.velocidadY = 0;
                 jugador.enSuelo = true;
             }
 
-            // Límites del escenario
             jugador.x = Math.max(0, Math.min(canva.width - jugador.ancho, jugador.x));
             jugador.y = Math.max(0, Math.min(canva.height - jugador.alto, jugador.y));
         }
@@ -403,11 +457,10 @@
             enemigo.temporizadorMovimiento--;
             enemigo.temporizadorDefensa--;
 
-            // Defensa aleatoria (15% cada 2 segundos aprox)
             if (enemigo.temporizadorDefensa <= 0 && Math.random() < 0.012) {
                 enemigo.defensaActiva = true;
-                enemigo.temporizadorDefensa = 45; // 0.75s
-                enemigo.enfriamientoDefensa = 120; // 2s cooldown
+                enemigo.temporizadorDefensa = 45;
+                enemigo.enfriamientoDefensa = 120;
             }
 
             if (enemigo.defensaActiva && enemigo.temporizadorDefensa > 0) {
@@ -417,14 +470,11 @@
                 }
             }
 
-            // Movimiento horizontal
             if (enemigo.temporizadorMovimiento <= 0) {
                 const distanciaX = jugador.x - enemigo.x;
-                if (Math.abs(distanciaX) < 200) {
-                    // Perseguir al jugador
+                if (Math.abs(distanciaX) < 20000) {
                     enemigo.direccionMovimiento = distanciaX > 0 ? 1 : -1;
                 } else {
-                    // Movimiento aleatorio
                     if (Math.random() < 0.3) {
                         enemigo.direccionMovimiento *= -1;
                     }
@@ -434,7 +484,6 @@
 
             enemigo.velocidadX = enemigo.direccionMovimiento * enemigo.velocidadHorizontal;
 
-            // Física del enemigo
             if (!enemigo.enSuelo) {
                 enemigo.velocidadY += GRAVEDAD;
             }
@@ -442,18 +491,15 @@
             enemigo.x += enemigo.velocidadX;
             enemigo.y += enemigo.velocidadY;
 
-            // Colisión con el suelo
             if (enemigo.y >= SUELO_Y - enemigo.alto) {
                 enemigo.y = SUELO_Y - enemigo.alto;
                 enemigo.velocidadY = 0;
                 enemigo.enSuelo = true;
             }
 
-            // Límites
             enemigo.x = Math.max(0, Math.min(canva.width - enemigo.ancho, enemigo.x));
             enemigo.y = Math.max(0, Math.min(canva.height - enemigo.alto, enemigo.y));
 
-            // Ataque
             const distanciaX = Math.abs(jugador.x - enemigo.x);
             const distanciaY = Math.abs(jugador.y - enemigo.y);
             if (distanciaX < 130 && distanciaY < 60 && enemigo.enSuelo && jugador.enSuelo && enemigo.enfriamientoAtaque <= 0 && !enemigo.atacandoEspada) {
@@ -464,7 +510,7 @@
         function ataqueEnemigo() {
             enemigo.atacandoEspada = true;
             enemigo.anguloEspada = 0;
-            enemigo.enfriamientoAtaque = 55;
+            enemigo.enfriamientoAtaque = 65;
             
             setTimeout(() => {
                 verificarGolpeEnemigo();
@@ -473,7 +519,7 @@
         }
 
         function verificarGolpeEnemigo() {
-            const alcanceEspada = 120;
+            const alcanceEspada = 130;
             const dx = Math.abs(jugador.x - enemigo.x);
             const dy = Math.abs(jugador.y - enemigo.y);
             
@@ -502,7 +548,6 @@
         }
 
         function dibujarSuelo() {
-            // Suelo completo
             ctx.fillStyle = '#8B7355';
             ctx.fillRect(0, SUELO_Y, canva.width, canva.height - SUELO_Y);
             ctx.strokeStyle = '#6B5344';
@@ -563,7 +608,7 @@
                 ctx.rotate((enemigo.anguloEspada * Math.PI) / 180);
             }
             ctx.fillStyle = '#000F00';
-            ctx.fillRect(-80, -3, 60, 6);
+            ctx.fillRect(-100, -3, 80, 6);
             ctx.fillStyle = '#8B4513';
             ctx.fillRect(-23, -5, 8, 10);
             ctx.restore();
@@ -590,7 +635,7 @@
             const barraEnemigo = document.getElementById('vidaEnemigo');
 
             const porcentajeJugador = (jugador.vida / 100) * 100;
-            const porcentajeEnemigo = (enemigo.vida / 100) * 100;
+            const porcentajeEnemigo = (enemigo.vida / 150) * 100;
 
             barraJugador.style.width = porcentajeJugador + '%';
             barraJugador.textContent = jugador.vida + ' PV';
@@ -606,9 +651,11 @@
         function verificarFinJuego() {
             if (jugador.vida <= 0) {
                 juegoActivo = false;
+                registrarDerrota();
                 mostrarFinJuego('DERROTA');
             } else if (enemigo.vida <= 0) {
                 juegoActivo = false;
+                registrarVictoria();
                 mostrarFinJuego('¡VICTORIA!');
             }
         }
@@ -653,6 +700,7 @@
         musicaFondo.volume = 0.5;
 
         document.addEventListener('DOMContentLoaded', () => {
+            cargarEstadisticas(); // Cargar al iniciar
             musicaFondo.play().catch(() => {
                 const reproducirAlInteractuar = () => {
                     musicaFondo.play();
@@ -696,11 +744,8 @@
         }
 
         // Inicializar
-        jugador.vida = 100;
-        enemigo.vida = 150;
         actualizarBarrasVida();
         bucleJuego();
     </script>
 </body>
 </html>
-
