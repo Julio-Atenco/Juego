@@ -64,7 +64,7 @@
             background: linear-gradient(90deg, #f44336 0%, #ff5722 100%);
         }
 
-        .contenedor-lienzo {
+        .contenedor-canva {
             position: relative;
             box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
             overflow: hidden;
@@ -207,8 +207,8 @@
         </div>
     </div>
 
-    <div class="contenedor-lienzo">
-        <canvas id="lienzoJuego" width="1200" height="500"></canvas>
+    <div class="contenedor-canva">
+        <canvas id="canvaJuego" width="1200" height="500"></canvas>
     </div>
 
     <div class="info-controles">
@@ -246,8 +246,8 @@
     <audio id="musicaFondo" src="Get This Back [xv8tICN8M7w].mp3" loop autoplay style="display:none"></audio>
 
     <script>
-        const lienzo = document.getElementById('lienzoJuego');
-        const ctx = lienzo.getContext('2d');
+        const canva = document.getElementById('canvaJuego');
+        const ctx = canva.getContext('2d');
 
         let juegoActivo = true;
         let teclas = {};
@@ -323,7 +323,7 @@
         });
 
         // Ataque con click del mouse
-        lienzo.addEventListener('click', (e) => {
+        canva.addEventListener('click', (e) => {
             if (juegoActivo && !jugador.atacandoEspada) {
                 ataqueJugador();
             }
@@ -391,8 +391,8 @@
             }
 
             // Límites del escenario
-            jugador.x = Math.max(0, Math.min(lienzo.width - jugador.ancho, jugador.x));
-            jugador.y = Math.max(0, Math.min(lienzo.height - jugador.alto, jugador.y));
+            jugador.x = Math.max(0, Math.min(canva.width - jugador.ancho, jugador.x));
+            jugador.y = Math.max(0, Math.min(canva.height - jugador.alto, jugador.y));
         }
 
         function iaEnemigo() {
@@ -450,8 +450,8 @@
             }
 
             // Límites
-            enemigo.x = Math.max(0, Math.min(lienzo.width - enemigo.ancho, enemigo.x));
-            enemigo.y = Math.max(0, Math.min(lienzo.height - enemigo.alto, enemigo.y));
+            enemigo.x = Math.max(0, Math.min(canva.width - enemigo.ancho, enemigo.x));
+            enemigo.y = Math.max(0, Math.min(canva.height - enemigo.alto, enemigo.y));
 
             // Ataque
             const distanciaX = Math.abs(jugador.x - enemigo.x);
@@ -504,12 +504,12 @@
         function dibujarSuelo() {
             // Suelo completo
             ctx.fillStyle = '#8B7355';
-            ctx.fillRect(0, SUELO_Y, lienzo.width, lienzo.height - SUELO_Y);
+            ctx.fillRect(0, SUELO_Y, canva.width, canva.height - SUELO_Y);
             ctx.strokeStyle = '#6B5344';
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.moveTo(0, SUELO_Y);
-            ctx.lineTo(lienzo.width, SUELO_Y);
+            ctx.lineTo(canva.width, SUELO_Y);
             ctx.stroke();
         }
 
@@ -665,7 +665,7 @@
         });
 
         function bucleJuego() {
-            ctx.clearRect(0, 0, lienzo.width, lienzo.height);
+            ctx.clearRect(0, 0, canva.width, canva.height);
 
             if (juegoActivo) {
                 fisicaJugador();
